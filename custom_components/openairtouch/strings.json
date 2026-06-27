@@ -1,0 +1,22 @@
+﻿{
+  "title": "OpenAirTouch",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to OpenAirTouch",
+        "description": "Enter the URL for the OpenAirTouch add-on HTTP API.",
+        "data": {
+          "url": "URL"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to OpenAirTouch.",
+      "invalid_response": "OpenAirTouch responded, but the response was not valid.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This OpenAirTouch instance is already configured."
+    }
+  }
+}
