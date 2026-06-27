@@ -33,3 +33,32 @@ class OpenAirTouchEntity(CoordinatorEntity[OpenAirTouchCoordinator]):
     @property
     def _airtouch_state(self) -> dict[str, Any]:
         return runtime_state(self.coordinator.data)
+
+
+def ac_device_info(coordinator: OpenAirTouchCoordinator, ac_id: int, name: str | None = None) -> DeviceInfo:
+    """Return device info for an AC head."""
+    return DeviceInfo(
+        identifiers={(DOMAIN, f"{coordinator.instance_id}_ac_{ac_id}")},
+        manufacturer=MANUFACTURER,
+        model=MODEL,
+        name=name or f"AC {ac_id + 1}",
+    )
+
+
+def zone_device_info(
+    coordinator: OpenAirTouchCoordinator,
+    group_id: int,
+    *,
+    ac_id: int | None = None,
+    name: str | None = None,
+) -> DeviceInfo:
+    """Return device info for a zone."""
+    info = DeviceInfo(
+        identifiers={(DOMAIN, f"{coordinator.instance_id}_zone_{group_id}")},
+        manufacturer=MANUFACTURER,
+        model="OpenAirTouch Zone",
+        name=name or f"Zone {group_id + 1}",
+    )
+    if ac_id is not None:
+        info["via_device"] = (DOMAIN, f"{coordinator.instance_id}_ac_{ac_id}")
+    return info

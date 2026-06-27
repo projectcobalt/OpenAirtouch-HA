@@ -13,8 +13,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .coordinator import OpenAirTouchCoordinator, indexed
-from .entity import OpenAirTouchEntity
-from .state import real_ac_ids
+from .entity import OpenAirTouchEntity, ac_device_info, zone_device_info
+from .state import ac_id_for_group, group_records, real_ac_ids, real_zone_ids
 
 AC_MODE_TO_HVAC = {
     0: HVACMode.AUTO,
@@ -40,11 +40,12 @@ async def async_setup_entry(
     for ac_id in real_ac_ids(state):
         entities.append(OpenAirTouchAcClimate(coordinator, ac_id))
 
-    groups = state.get("active_groups") or state.get("groups") or {}
-    for raw_id, group in sorted(groups.items(), key=lambda item: int(item[0])):
+    groups = group_records(state)
+    for group_id in real_zone_ids(state):
+        group = groups[group_id]
         status = (group or {}).get("status") or {}
         if status.get("has_sensor") is True:
-            entities.append(OpenAirTouchZoneClimate(coordinator, int(raw_id)))
+            entities.append(OpenAirTouchZoneClimate(coordinator, group_id))
 
     async_add_entities(entities)
 
@@ -78,6 +79,10 @@ class OpenAirTouchAcClimate(OpenAirTouchEntity, ClimateEntity):
     def name(self) -> str:
         base = self._record.get("base") or {}
         return base.get("name") or self._attr_name
+
+    @property
+    def device_info(self):
+        return ac_device_info(self.coordinator, self.ac_id, self.name)
 
     @property
     def min_temp(self) -> float:
@@ -156,6 +161,15 @@ class OpenAirTouchZoneClimate(OpenAirTouchEntity, ClimateEntity):
     @property
     def name(self) -> str:
         return self._record.get("name") or self._attr_name
+
+    @property
+    def device_info(self):
+        return zone_device_info(
+            self.coordinator,
+            self.group_id,
+            ac_id=ac_id_for_group(self._airtouch_state, self.group_id),
+            name=self.name,
+        )
 
     @property
     def min_temp(self) -> float:

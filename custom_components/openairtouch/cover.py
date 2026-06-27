@@ -11,7 +11,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .coordinator import OpenAirTouchCoordinator, indexed
-from .entity import OpenAirTouchEntity
+from .entity import OpenAirTouchEntity, zone_device_info
+from .state import ac_id_for_group, real_zone_ids
 
 
 async def async_setup_entry(
@@ -21,8 +22,7 @@ async def async_setup_entry(
 ) -> None:
     coordinator: OpenAirTouchCoordinator = hass.data[DOMAIN][entry.entry_id]
     state = coordinator.data and ((coordinator.data.get("runtime") or {}).get("state") or {})
-    groups = state.get("active_groups") or state.get("groups") or {}
-    async_add_entities(OpenAirTouchZoneDamper(coordinator, int(raw_id)) for raw_id in sorted(groups, key=lambda item: int(item)))
+    async_add_entities(OpenAirTouchZoneDamper(coordinator, group_id) for group_id in real_zone_ids(state))
 
 
 class OpenAirTouchZoneDamper(OpenAirTouchEntity, CoverEntity):
@@ -44,6 +44,15 @@ class OpenAirTouchZoneDamper(OpenAirTouchEntity, CoverEntity):
     @property
     def name(self) -> str:
         return f"{self._record.get('name') or f'Zone {self.group_id + 1}'} Damper"
+
+    @property
+    def device_info(self):
+        return zone_device_info(
+            self.coordinator,
+            self.group_id,
+            ac_id=ac_id_for_group(self._airtouch_state, self.group_id),
+            name=self._record.get("name") or f"Zone {self.group_id + 1}",
+        )
 
     @property
     def current_cover_position(self) -> int | None:

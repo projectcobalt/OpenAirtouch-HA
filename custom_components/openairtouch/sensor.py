@@ -18,8 +18,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .coordinator import OpenAirTouchCoordinator, indexed
-from .entity import OpenAirTouchEntity
-from .state import real_ac_ids
+from .entity import OpenAirTouchEntity, ac_device_info, zone_device_info
+from .state import ac_id_for_group, group_records, real_ac_ids, real_zone_ids, spill_group_ids
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -47,9 +47,7 @@ async def async_setup_entry(
             ),
         ))
 
-    groups = state.get("active_groups") or state.get("groups") or {}
-    for raw_id in sorted(groups, key=lambda item: int(item)):
-        group_id = int(raw_id)
+    for group_id in real_zone_ids(state):
         entities.append(OpenAirTouchZoneSensor(coordinator, group_id, OpenAirTouchSensorDescription(
             key="temperature",
             name="Temperature",
@@ -65,6 +63,11 @@ async def async_setup_entry(
             native_unit_of_measurement=PERCENTAGE,
             state_class=SensorStateClass.MEASUREMENT,
         )))
+
+    for group_id in sorted(spill_group_ids(state)):
+        ac_id = ac_id_for_group(state, group_id)
+        if ac_id is not None:
+            entities.append(OpenAirTouchSpillDamperSensor(coordinator, group_id, ac_id))
 
     for row in state.get("sensor_view") or []:
         if not isinstance(row, dict) or "id" not in row:
@@ -128,6 +131,12 @@ class OpenAirTouchAcSensor(OpenAirTouchEntity, SensorEntity):
             "brand": base.get("brand"),
         }
 
+    @property
+    def device_info(self):
+        record = indexed(self._airtouch_state.get("acs") or {}, self.ac_id) or {}
+        base = record.get("base") or {}
+        return ac_device_info(self.coordinator, self.ac_id, base.get("name"))
+
 
 class OpenAirTouchZoneSensor(OpenAirTouchEntity, SensorEntity):
     """Sensor for a zone record."""
@@ -146,6 +155,63 @@ class OpenAirTouchZoneSensor(OpenAirTouchEntity, SensorEntity):
         groups = self._airtouch_state.get("active_groups") or self._airtouch_state.get("groups") or {}
         record = indexed(groups, self.group_id) or {}
         return self.entity_description.value_fn(record.get("status") or {})
+
+    @property
+    def device_info(self):
+        groups = self._airtouch_state.get("active_groups") or self._airtouch_state.get("groups") or {}
+        record = indexed(groups, self.group_id) or {}
+        return zone_device_info(
+            self.coordinator,
+            self.group_id,
+            ac_id=ac_id_for_group(self._airtouch_state, self.group_id),
+            name=record.get("name") or f"Zone {self.group_id + 1}",
+        )
+
+
+class OpenAirTouchSpillDamperSensor(OpenAirTouchEntity, SensorEntity):
+    """Read-only spill damper percentage attached to the owning AC device."""
+
+    _attr_device_class = None
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator: OpenAirTouchCoordinator, group_id: int, ac_id: int) -> None:
+        super().__init__(coordinator, f"ac_{ac_id + 1}_spill_zone_{group_id + 1}_damper")
+        self.group_id = group_id
+        self.ac_id = ac_id
+        self._attr_name = f"AC {ac_id + 1} Spill Damper"
+
+    @property
+    def name(self) -> str:
+        record = self._record
+        label = record.get("name") if record else None
+        return f"{label or 'Spill'} Damper"
+
+    @property
+    def native_value(self) -> Any:
+        status = self._record.get("status") if self._record else {}
+        return status.get("percentage")
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        status = self._record.get("status") if self._record else {}
+        return {
+            "group": self.group_id,
+            "ac": self.ac_id,
+            "power_name": status.get("power_name"),
+            "spill_on": status.get("spill_on"),
+        }
+
+    @property
+    def device_info(self):
+        record = indexed(self._airtouch_state.get("acs") or {}, self.ac_id) or {}
+        base = record.get("base") or {}
+        return ac_device_info(self.coordinator, self.ac_id, base.get("name"))
+
+    @property
+    def _record(self) -> dict[str, Any]:
+        groups = self._airtouch_state.get("active_groups") or self._airtouch_state.get("groups") or {}
+        return indexed(groups, self.group_id) or {}
 
 
 class OpenAirTouchSensorViewSensor(OpenAirTouchEntity, SensorEntity):
