@@ -19,6 +19,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN
 from .coordinator import OpenAirTouchCoordinator, indexed
 from .entity import OpenAirTouchEntity
+from .state import real_ac_ids
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -35,10 +36,10 @@ async def async_setup_entry(
     state = coordinator.data and ((coordinator.data.get("runtime") or {}).get("state") or {})
     entities: list[SensorEntity] = []
 
-    for raw_id in sorted((state.get("acs") or {}), key=lambda item: int(item)):
+    for ac_id in real_ac_ids(state):
         entities.append(OpenAirTouchAcSensor(
             coordinator,
-            int(raw_id),
+            ac_id,
             OpenAirTouchSensorDescription(
                 key="error_code",
                 name="Error Code",

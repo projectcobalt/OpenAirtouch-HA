@@ -14,6 +14,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN
 from .coordinator import OpenAirTouchCoordinator, indexed
 from .entity import OpenAirTouchEntity
+from .state import real_ac_ids
 
 AC_MODE_TO_HVAC = {
     0: HVACMode.AUTO,
@@ -36,8 +37,8 @@ async def async_setup_entry(
     state = coordinator.data and ((coordinator.data.get("runtime") or {}).get("state") or {})
     entities: list[ClimateEntity] = []
 
-    for raw_id in sorted((state.get("acs") or {}), key=lambda item: int(item)):
-        entities.append(OpenAirTouchAcClimate(coordinator, int(raw_id)))
+    for ac_id in real_ac_ids(state):
+        entities.append(OpenAirTouchAcClimate(coordinator, ac_id))
 
     groups = state.get("active_groups") or state.get("groups") or {}
     for raw_id, group in sorted(groups.items(), key=lambda item: int(item[0])):
