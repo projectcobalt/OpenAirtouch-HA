@@ -58,6 +58,8 @@ class OpenAirTouchLowBatterySensor(OpenAirTouchEntity, BinarySensorEntity):
                     "kind": row.get("kind"),
                     "status": row.get("status"),
                     "mapped_groups": row.get("mapped_groups"),
+                    "mapped_group_ids": row.get("mapped_group_ids"),
+                    "mapped_zones": row.get("mapped_zones"),
                 }
         return {}
 

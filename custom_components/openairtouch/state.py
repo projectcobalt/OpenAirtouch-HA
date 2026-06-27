@@ -89,15 +89,39 @@ def zone_id_for_sensor_row(state: dict[str, Any], row: dict[str, Any]) -> int | 
     """Return the owning zone ID for an RF sensor row when it maps cleanly."""
     if row.get("kind") != "rf":
         return None
-    try:
-        sensor_id = int(row.get("id"))
-    except (TypeError, ValueError):
-        return None
-    if sensor_id % 2:
-        return None
 
-    group_id = sensor_id // 2
-    if group_id not in real_zone_ids(state):
-        return None
-    status = (group_records(state).get(group_id) or {}).get("status") or {}
-    return group_id if status.get("has_sensor") is True else None
+    explicit_group_ids = _explicit_mapped_group_ids(row)
+    real_ids = set(real_zone_ids(state))
+    mapped_real_ids = [group_id for group_id in explicit_group_ids if group_id in real_ids]
+    return mapped_real_ids[0] if len(mapped_real_ids) == 1 else None
+
+
+def _explicit_mapped_group_ids(row: dict[str, Any]) -> list[int]:
+    if "mapped_group_ids" in row:
+        return _int_list(row.get("mapped_group_ids"))
+
+    group_ids: list[int] = []
+    mappings = row.get("mapped_zones")
+    if not isinstance(mappings, list):
+        return group_ids
+    for mapping in mappings:
+        if not isinstance(mapping, dict):
+            continue
+        value = mapping.get("group_id", mapping.get("zone_id"))
+        try:
+            group_ids.append(int(value))
+        except (TypeError, ValueError):
+            continue
+    return group_ids
+
+
+def _int_list(value: Any) -> list[int]:
+    if not isinstance(value, list):
+        return []
+    result: list[int] = []
+    for item in value:
+        try:
+            result.append(int(item))
+        except (TypeError, ValueError):
+            continue
+    return result

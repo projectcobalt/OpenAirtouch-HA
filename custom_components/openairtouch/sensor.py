@@ -272,6 +272,8 @@ class OpenAirTouchSensorViewSensor(OpenAirTouchEntity, SensorEntity):
             "present": row.get("present"),
             "listed": row.get("listed"),
             "mapped_groups": row.get("mapped_groups"),
+            "mapped_group_ids": row.get("mapped_group_ids"),
+            "mapped_zones": row.get("mapped_zones"),
             "mac": row.get("mac"),
         }
 

@@ -103,7 +103,43 @@ class OpenAirTouchStateTests(unittest.TestCase):
 
         self.assertEqual(ac_id, 1)
 
-    def test_zone_id_for_sensor_row_maps_rf_sensor_address_to_zone(self) -> None:
+    def test_zone_id_for_sensor_row_uses_explicit_mapped_group_id(self) -> None:
+        state = load_state_module()
+
+        zone_id = state.zone_id_for_sensor_row({
+            "active_groups": {
+                "0": {"status": {"has_sensor": True}},
+                "1": {"status": {"has_sensor": True}},
+            },
+        }, {"id": 8, "kind": "rf", "mapped_group_ids": [1]})
+
+        self.assertEqual(zone_id, 1)
+
+    def test_zone_id_for_sensor_row_uses_explicit_mapped_zones(self) -> None:
+        state = load_state_module()
+
+        zone_id = state.zone_id_for_sensor_row({
+            "active_groups": {
+                "0": {"status": {"has_sensor": True}},
+                "2": {"status": {"has_sensor": True}},
+            },
+        }, {"id": 8, "kind": "rf", "mapped_zones": [{"group_id": 2, "name": "Bedroom"}]})
+
+        self.assertEqual(zone_id, 2)
+
+    def test_zone_id_for_sensor_row_does_not_guess_when_explicit_mapping_has_multiple_zones(self) -> None:
+        state = load_state_module()
+
+        zone_id = state.zone_id_for_sensor_row({
+            "active_groups": {
+                "0": {"status": {"has_sensor": True}},
+                "2": {"status": {"has_sensor": True}},
+            },
+        }, {"id": 8, "kind": "rf", "mapped_group_ids": [0, 2]})
+
+        self.assertIsNone(zone_id)
+
+    def test_zone_id_for_sensor_row_requires_explicit_mapping(self) -> None:
         state = load_state_module()
 
         zone_id = state.zone_id_for_sensor_row({
@@ -113,7 +149,7 @@ class OpenAirTouchStateTests(unittest.TestCase):
             },
         }, {"id": 2, "kind": "rf"})
 
-        self.assertEqual(zone_id, 1)
+        self.assertIsNone(zone_id)
 
     def test_zone_id_for_sensor_row_ignores_touchpads_and_unsensed_zones(self) -> None:
         state = load_state_module()
