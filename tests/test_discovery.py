@@ -17,7 +17,7 @@ def load_discovery_module() -> types.ModuleType:
     sys.modules["custom_components.openairtouch"] = package
 
     const = types.ModuleType("custom_components.openairtouch.const")
-    const.DEFAULT_URL = "http://a0d7b954-openairtouch:8099"
+    const.DEFAULT_URL = ""
     sys.modules["custom_components.openairtouch.const"] = const
 
     path = Path(__file__).parents[1] / "custom_components" / "openairtouch" / "discovery.py"
@@ -65,19 +65,19 @@ class OpenAirTouchDiscoveryTests(unittest.TestCase):
 
         self.assertEqual(url, "http://d6642813-openairtouch:8099")
 
-    def test_service_name_is_fallback_host(self) -> None:
-        discovery = load_discovery_module()
-
-        url = discovery.url_from_hassio_discovery({"service": "openairtouch"})
-
-        self.assertEqual(url, "http://openairtouch:8099")
-
-    def test_default_url_is_used_without_discovery_data(self) -> None:
+    def test_no_url_is_used_without_discovery_data(self) -> None:
         discovery = load_discovery_module()
 
         url = discovery.url_from_hassio_discovery(None)
 
-        self.assertEqual(url, "http://a0d7b954-openairtouch:8099")
+        self.assertIsNone(url)
+
+    def test_service_name_alone_is_not_treated_as_hostname(self) -> None:
+        discovery = load_discovery_module()
+
+        url = discovery.url_from_hassio_discovery({"service": "openairtouch"})
+
+        self.assertIsNone(url)
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+from urllib.parse import urlparse
 
 import voluptuous as vol
 
@@ -34,6 +35,8 @@ class OpenAirTouchConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def _async_create_entry_from_url(self, url: str):
         """Validate an OpenAirTouch URL and create a config entry."""
         url = url.rstrip("/")
+        if not _is_valid_url(url):
+            raise OpenAirTouchApiError("invalid URL")
         await _validate_url(self.hass, url)
         await self.async_set_unique_id(url)
         self._abort_if_unique_id_configured()
@@ -41,8 +44,12 @@ class OpenAirTouchConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_hassio(self, discovery_info: dict[str, Any]):
         """Handle discovery from the OpenAirTouch Home Assistant add-on."""
+        url = url_from_hassio_discovery(discovery_info)
+        if url is None:
+            _LOGGER.warning("OpenAirTouch discovery did not include a routable add-on URL: %s", discovery_info)
+            return self.async_abort(reason="missing_url")
         try:
-            return await self._async_create_entry_from_url(url_from_hassio_discovery(discovery_info))
+            return await self._async_create_entry_from_url(url)
         except OpenAirTouchApiError:
             _LOGGER.warning("Discovered OpenAirTouch add-on was not reachable")
             return self.async_abort(reason="cannot_connect")
@@ -57,7 +64,7 @@ class OpenAirTouchConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             try:
                 return await self._async_create_entry_from_url(str(user_input[CONF_URL]))
             except OpenAirTouchApiError:
-                errors["base"] = "cannot_connect"
+                errors["base"] = "invalid_url" if not _is_valid_url(str(user_input[CONF_URL])) else "cannot_connect"
             except Exception:
                 _LOGGER.exception("Unexpected error validating OpenAirTouch URL")
                 errors["base"] = "unknown"
@@ -67,3 +74,8 @@ class OpenAirTouchConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema({vol.Required(CONF_URL, default=DEFAULT_URL): str}),
             errors=errors,
         )
+
+
+def _is_valid_url(url: str) -> bool:
+    parsed = urlparse(url)
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)

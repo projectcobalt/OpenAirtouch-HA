@@ -1,4 +1,4 @@
-﻿{
+{
   "title": "OpenAirTouch",
   "config": {
     "step": {
@@ -12,12 +12,14 @@
     },
     "error": {
       "cannot_connect": "Unable to connect to OpenAirTouch.",
+      "invalid_url": "Enter a valid HTTP or HTTPS URL.",
       "invalid_response": "OpenAirTouch responded, but the response was not valid.",
       "unknown": "Unexpected error."
     },
     "abort": {
       "already_configured": "This OpenAirTouch instance is already configured.",
       "cannot_connect": "Unable to connect to the discovered OpenAirTouch add-on.",
+      "missing_url": "OpenAirTouch was discovered, but Home Assistant did not provide the add-on URL.",
       "unknown": "Unexpected error setting up the discovered OpenAirTouch add-on."
     }
   }

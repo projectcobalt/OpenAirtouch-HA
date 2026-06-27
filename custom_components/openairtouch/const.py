@@ -7,7 +7,7 @@ from typing import Final
 from homeassistant.const import Platform
 
 DOMAIN: Final = "openairtouch"
-DEFAULT_URL: Final = "http://a0d7b954-openairtouch:8099"
+DEFAULT_URL: Final = ""
 CONF_URL: Final = "url"
 
 ATTRIBUTION: Final = "Data provided by the OpenAirTouch add-on"

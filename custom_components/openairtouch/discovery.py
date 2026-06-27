@@ -5,15 +5,13 @@ from __future__ import annotations
 from typing import Any
 from urllib.parse import urlparse, urlunparse
 
-from .const import DEFAULT_URL
-
 DEFAULT_ADDON_PORT = 8099
 
 
-def url_from_hassio_discovery(discovery_info: dict[str, Any] | None) -> str:
+def url_from_hassio_discovery(discovery_info: dict[str, Any] | None) -> str | None:
     """Return an add-on API URL from Supervisor discovery data."""
     if not isinstance(discovery_info, dict):
-        return DEFAULT_URL
+        return None
 
     url = discovery_info.get("url")
     if isinstance(url, str) and url.strip():
@@ -24,11 +22,11 @@ def url_from_hassio_discovery(discovery_info: dict[str, Any] | None) -> str:
     if host:
         return _normalise_url(f"http://{host}:{port}")
 
-    addon = _first_string(discovery_info, ("addon", "slug", "service"))
+    addon = _first_string(discovery_info, ("addon", "slug"))
     if addon:
         return _normalise_url(f"http://{_addon_hostname(addon)}:{port}")
 
-    return DEFAULT_URL
+    return None
 
 
 def _normalise_url(url: str) -> str:
