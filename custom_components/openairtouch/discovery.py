@@ -19,8 +19,12 @@ def url_from_hassio_discovery(discovery_info: Any) -> str | None:
     if isinstance(url, str) and url.strip():
         return normalise_url(url)
 
-    host = _first_string(discovery_data, ("ip_address", "host", "hostname"))
-    port = _first_int(discovery_data, ("port", "api_port", "http_port")) or DEFAULT_ADDON_PORT
+    host = _first_string(discovery_data, ("host", "hostname", "ip_address"))
+    port = (
+        _first_int(discovery_data, ("port", "api_port", "http_port", "ingress_port"))
+        or _first_network_port(discovery_data.get("network"))
+        or DEFAULT_ADDON_PORT
+    )
     if host:
         return normalise_url(f"http://{host}:{port}")
 
@@ -55,6 +59,14 @@ def hassio_discovery_unique_id(discovery_info: Any, fallback_url: str) -> str:
         if isinstance(uuid, str) and uuid:
             return uuid
     return fallback_url
+
+
+def addon_slug_from_hassio_info(discovery_info: Any) -> str | None:
+    """Return the full Supervisor add-on slug from discovery or add-on info."""
+    data = hassio_discovery_data(discovery_info)
+    if data is None:
+        return None
+    return _first_string(data, ("slug", "addon"))
 
 
 def is_openairtouch_hassio_discovery(discovery_info: Any) -> bool:
@@ -94,6 +106,18 @@ def _first_int(data: dict[str, Any], keys: tuple[str, ...]) -> int | None:
             return int(value)
         except (TypeError, ValueError):
             continue
+    return None
+
+
+def _first_network_port(network: Any) -> int | None:
+    if not isinstance(network, dict):
+        return None
+    for key in network:
+        if not isinstance(key, str) or "/" not in key:
+            continue
+        port, protocol = key.split("/", 1)
+        if protocol == "tcp" and port.isdecimal():
+            return int(port)
     return None
 
 

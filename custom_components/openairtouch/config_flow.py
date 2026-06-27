@@ -10,14 +10,18 @@ from aiohasupervisor import SupervisorError
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.components.hassio import AddonError
+from homeassistant.components.hassio.const import DOMAIN as HASSIO_DOMAIN
 from homeassistant.components.hassio.handler import get_supervisor_client
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.hassio import is_hassio
 
+from .addon import get_addon_manager
 from .api import OpenAirTouchApiError, OpenAirTouchClient
 from .const import CONF_URL, DEFAULT_URL, DOMAIN
 from .discovery import (
+    addon_slug_from_hassio_info,
     hassio_discovery_unique_id,
     is_openairtouch_hassio_discovery,
     normalise_url,
@@ -40,19 +44,85 @@ async def _async_discovered_hassio_urls(hass: HomeAssistant) -> list[tuple[str, 
     if not is_hassio(hass):
         return []
 
+    results: list[tuple[str, str]] = []
     try:
         discoveries = await get_supervisor_client(hass).discovery.list()
     except SupervisorError as err:
         _LOGGER.debug("Unable to read Supervisor discovery info: %s", err)
+    else:
+        results.extend(await _async_hassio_urls_from_payloads(hass, discoveries))
+
+    if not results:
+        results.extend(await _async_installed_hassio_addon_urls(hass))
+    return results
+
+
+async def _async_installed_hassio_addon_urls(hass: HomeAssistant) -> list[tuple[str, str]]:
+    """Return OpenAirTouch URLs from installed Supervisor add-on metadata."""
+    addons = await _async_supervisor_data(hass, "/addons")
+    addons_list = addons.get("addons") if isinstance(addons, dict) else None
+    if not isinstance(addons_list, list):
         return []
 
     results: list[tuple[str, str]] = []
-    for discovery_info in discoveries:
+    for addon in addons_list:
+        if not isinstance(addon, dict) or not is_openairtouch_hassio_discovery(addon):
+            continue
+
+        if result := await _async_hassio_url_from_payload(hass, addon):
+            results.append(result)
+    return results
+
+
+async def _async_supervisor_data(hass: HomeAssistant, command: str) -> Any:
+    """Return data from the Home Assistant Supervisor API."""
+    hassio = hass.data.get(HASSIO_DOMAIN)
+    if hassio is None:
+        return None
+
+    try:
+        response = await hassio.send_command(command, method="get", source=f"{DOMAIN}.config_flow")
+    except Exception as err:
+        _LOGGER.debug("Unable to read Supervisor data from %s: %s", command, err)
+        return None
+
+    if isinstance(response, dict) and "data" in response:
+        return response["data"]
+    return response
+
+
+async def _async_hassio_urls_from_payloads(
+    hass: HomeAssistant, payloads: list[Any]
+) -> list[tuple[str, str]]:
+    results: list[tuple[str, str]] = []
+    for discovery_info in payloads:
         if not is_openairtouch_hassio_discovery(discovery_info):
             continue
-        if url := url_from_hassio_discovery(discovery_info):
-            results.append((url, hassio_discovery_unique_id(discovery_info, url)))
+        if result := await _async_hassio_url_from_payload(hass, discovery_info):
+            results.append(result)
     return results
+
+
+async def _async_hassio_url_from_payload(
+    hass: HomeAssistant, discovery_info: Any
+) -> tuple[str, str] | None:
+    """Return an add-on URL from Matter-style Supervisor discovery helpers."""
+    if slug := addon_slug_from_hassio_info(discovery_info):
+        try:
+            addon_discovery_info = await get_addon_manager(
+                hass, slug
+            ).async_get_addon_discovery_info()
+        except AddonError as err:
+            _LOGGER.debug("Unable to read OpenAirTouch add-on discovery info: %s", err)
+        else:
+            if isinstance(addon_discovery_info, dict):
+                payload = {"slug": slug, "uuid": slug, **addon_discovery_info}
+                if url := url_from_hassio_discovery(payload):
+                    return (url, hassio_discovery_unique_id(payload, url))
+
+    if url := url_from_hassio_discovery(discovery_info):
+        return (url, hassio_discovery_unique_id(discovery_info, url))
+    return None
 
 
 class OpenAirTouchConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):

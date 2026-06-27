@@ -51,7 +51,7 @@ class OpenAirTouchDiscoveryTests(unittest.TestCase):
 
         self.assertEqual(url, "http://abc-openairtouch:8099")
 
-    def test_ip_address_is_preferred_over_hostname(self) -> None:
+    def test_hostname_is_preferred_over_ephemeral_ip_address(self) -> None:
         discovery = load_discovery_module()
 
         url = discovery.url_from_hassio_discovery({
@@ -59,7 +59,29 @@ class OpenAirTouchDiscoveryTests(unittest.TestCase):
             "host": "d6642813-openairtouch",
         })
 
-        self.assertEqual(url, "http://172.30.33.4:8099")
+        self.assertEqual(url, "http://d6642813-openairtouch:8099")
+
+    def test_ingress_port_is_used_from_installed_addon_info(self) -> None:
+        discovery = load_discovery_module()
+
+        url = discovery.url_from_hassio_discovery({
+            "slug": "d6642813_openairtouch",
+            "hostname": "d6642813-openairtouch",
+            "ingress_port": 8101,
+        })
+
+        self.assertEqual(url, "http://d6642813-openairtouch:8101")
+
+    def test_network_port_is_used_from_installed_addon_info(self) -> None:
+        discovery = load_discovery_module()
+
+        url = discovery.url_from_hassio_discovery({
+            "slug": "d6642813_openairtouch",
+            "hostname": "d6642813-openairtouch",
+            "network": {"8102/tcp": None},
+        })
+
+        self.assertEqual(url, "http://d6642813-openairtouch:8102")
 
     def test_addon_slug_is_fallback_host(self) -> None:
         discovery = load_discovery_module()
@@ -74,6 +96,20 @@ class OpenAirTouchDiscoveryTests(unittest.TestCase):
         url = discovery.url_from_hassio_discovery({"addon": "d6642813_openairtouch"})
 
         self.assertEqual(url, "http://d6642813-openairtouch:8099")
+
+    def test_full_addon_slug_is_extracted_from_installed_addon_info(self) -> None:
+        discovery = load_discovery_module()
+
+        slug = discovery.addon_slug_from_hassio_info({"slug": "d6642813_openairtouch"})
+
+        self.assertEqual(slug, "d6642813_openairtouch")
+
+    def test_full_addon_slug_is_extracted_from_supervisor_discovery(self) -> None:
+        discovery = load_discovery_module()
+
+        slug = discovery.addon_slug_from_hassio_info({"addon": "d6642813_openairtouch"})
+
+        self.assertEqual(slug, "d6642813_openairtouch")
 
     def test_hassio_service_info_uses_slug_as_container_hostname(self) -> None:
         discovery = load_discovery_module()
