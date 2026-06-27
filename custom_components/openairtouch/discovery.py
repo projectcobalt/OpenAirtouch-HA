@@ -38,7 +38,7 @@ def hassio_discovery_data(discovery_info: Any) -> dict[str, Any] | None:
 
     config = getattr(discovery_info, "config", None)
     data = dict(config) if isinstance(config, dict) else {}
-    for attr in ("slug", "name", "uuid"):
+    for attr in ("addon", "service", "slug", "name", "uuid"):
         value = getattr(discovery_info, attr, None)
         if value is not None:
             data[attr] = value

@@ -6,11 +6,14 @@ import logging
 from typing import Any
 from urllib.parse import urlparse
 
+from aiohasupervisor import SupervisorError
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.components.hassio.handler import get_supervisor_client
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.hassio import is_hassio
 
 from .api import OpenAirTouchApiError, OpenAirTouchClient
 from .const import CONF_URL, DEFAULT_URL, DOMAIN
@@ -30,6 +33,26 @@ async def _validate_url(hass: HomeAssistant, url: str) -> dict[str, Any]:
     if "status" not in health:
         raise OpenAirTouchApiError("missing status in health response")
     return health
+
+
+async def _async_discovered_hassio_urls(hass: HomeAssistant) -> list[tuple[str, str]]:
+    """Return Supervisor-discovered OpenAirTouch URLs and unique IDs."""
+    if not is_hassio(hass):
+        return []
+
+    try:
+        discoveries = await get_supervisor_client(hass).discovery.list()
+    except SupervisorError as err:
+        _LOGGER.debug("Unable to read Supervisor discovery info: %s", err)
+        return []
+
+    results: list[tuple[str, str]] = []
+    for discovery_info in discoveries:
+        if not is_openairtouch_hassio_discovery(discovery_info):
+            continue
+        if url := url_from_hassio_discovery(discovery_info):
+            results.append((url, hassio_discovery_unique_id(discovery_info, url)))
+    return results
 
 
 class OpenAirTouchConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -73,6 +96,15 @@ class OpenAirTouchConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
         errors: dict[str, str] = {}
+
+        if user_input is None:
+            for url, unique_id in await _async_discovered_hassio_urls(self.hass):
+                try:
+                    return await self._async_create_entry_from_url(url, unique_id=unique_id)
+                except OpenAirTouchApiError:
+                    _LOGGER.warning("Discovered OpenAirTouch add-on was not reachable")
+                except Exception:
+                    _LOGGER.exception("Unexpected error validating discovered OpenAirTouch add-on")
 
         if user_input is not None:
             try:
