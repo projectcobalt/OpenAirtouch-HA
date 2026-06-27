@@ -16,13 +16,14 @@ Home Assistant facade.
 ## Development install
 
 Copy `custom_components/openairtouch` into a Home Assistant `custom_components`
-directory, restart Home Assistant, then add OpenAirTouch from Settings >
+directory, then restart Home Assistant.
+
+If the OpenAirTouch add-on is installed, Home Assistant should discover it from
+the add-on metadata. Accept the discovered OpenAirTouch entry from Settings >
 Devices & services.
 
-Default add-on URL:
-
-```text
-http://a0d7b954-openairtouch:8099
-```
-
-If the add-on exposes port `8099/tcp`, a direct host/IP URL can also be used.
+For manual setup, use the HTTP API URL for your installed add-on instance. On
+Home Assistant OS/Supervised installs, the internal hostname usually matches the
+add-on slug with underscores replaced by hyphens, for example
+`http://<repository>-openairtouch:8099`. If the add-on exposes port `8099/tcp`,
+a direct host/IP URL can also be used.

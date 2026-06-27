@@ -58,6 +58,13 @@ class OpenAirTouchDiscoveryTests(unittest.TestCase):
 
         self.assertEqual(url, "http://openairtouch:8099")
 
+    def test_installed_addon_slug_uses_container_hostname(self) -> None:
+        discovery = load_discovery_module()
+
+        url = discovery.url_from_hassio_discovery({"addon": "d6642813_openairtouch"})
+
+        self.assertEqual(url, "http://d6642813-openairtouch:8099")
+
     def test_service_name_is_fallback_host(self) -> None:
         discovery = load_discovery_module()
 

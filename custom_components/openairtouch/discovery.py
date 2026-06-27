@@ -26,7 +26,7 @@ def url_from_hassio_discovery(discovery_info: dict[str, Any] | None) -> str:
 
     addon = _first_string(discovery_info, ("addon", "slug", "service"))
     if addon:
-        return _normalise_url(f"http://{addon}:{port}")
+        return _normalise_url(f"http://{_addon_hostname(addon)}:{port}")
 
     return DEFAULT_URL
 
@@ -57,3 +57,7 @@ def _first_int(data: dict[str, Any], keys: tuple[str, ...]) -> int | None:
         except (TypeError, ValueError):
             continue
     return None
+
+
+def _addon_hostname(value: str) -> str:
+    return value.replace("_", "-")
