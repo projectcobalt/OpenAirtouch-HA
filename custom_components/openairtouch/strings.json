@@ -16,7 +16,9 @@
       "unknown": "Unexpected error."
     },
     "abort": {
-      "already_configured": "This OpenAirTouch instance is already configured."
+      "already_configured": "This OpenAirTouch instance is already configured.",
+      "cannot_connect": "Unable to connect to the discovered OpenAirTouch add-on.",
+      "unknown": "Unexpected error setting up the discovered OpenAirTouch add-on."
     }
   }
 }

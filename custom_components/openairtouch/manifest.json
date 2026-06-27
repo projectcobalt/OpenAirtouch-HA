@@ -1,12 +1,12 @@
-﻿{
+{
   "domain": "openairtouch",
   "name": "OpenAirTouch",
-  "after_dependencies": ["http"],
+  "after_dependencies": ["hassio", "http"],
   "codeowners": [],
   "config_flow": true,
-  "documentation": "https://github.com/esparra/openairtouch-ha",
+  "documentation": "https://github.com/projectcobalt/OpenAirtouch-HA",
   "iot_class": "local_polling",
-  "issue_tracker": "https://github.com/esparra/openairtouch-ha/issues",
+  "issue_tracker": "https://github.com/projectcobalt/OpenAirtouch-HA/issues",
   "requirements": [],
   "version": "0.1.0"
 }
