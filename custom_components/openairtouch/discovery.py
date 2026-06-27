@@ -17,7 +17,7 @@ def url_from_hassio_discovery(discovery_info: dict[str, Any] | None) -> str | No
     if isinstance(url, str) and url.strip():
         return _normalise_url(url)
 
-    host = _first_string(discovery_info, ("host", "hostname", "ip_address"))
+    host = _first_string(discovery_info, ("ip_address", "host", "hostname"))
     port = _first_int(discovery_info, ("port", "api_port", "http_port")) or DEFAULT_ADDON_PORT
     if host:
         return _normalise_url(f"http://{host}:{port}")

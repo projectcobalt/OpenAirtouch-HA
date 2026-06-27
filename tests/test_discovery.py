@@ -51,6 +51,16 @@ class OpenAirTouchDiscoveryTests(unittest.TestCase):
 
         self.assertEqual(url, "http://abc-openairtouch:8099")
 
+    def test_ip_address_is_preferred_over_hostname(self) -> None:
+        discovery = load_discovery_module()
+
+        url = discovery.url_from_hassio_discovery({
+            "ip_address": "172.30.33.4",
+            "host": "d6642813-openairtouch",
+        })
+
+        self.assertEqual(url, "http://172.30.33.4:8099")
+
     def test_addon_slug_is_fallback_host(self) -> None:
         discovery = load_discovery_module()
 

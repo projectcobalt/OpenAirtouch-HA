@@ -5,7 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
@@ -16,14 +21,9 @@ from .coordinator import OpenAirTouchCoordinator, indexed
 from .entity import OpenAirTouchEntity
 
 
-@dataclass(frozen=True)
-class SensorDescription:
-    key: str
-    name: str
+@dataclass(frozen=True, kw_only=True)
+class OpenAirTouchSensorDescription(SensorEntityDescription):
     value_fn: Callable[[dict[str, Any]], Any]
-    device_class: SensorDeviceClass | None = None
-    native_unit_of_measurement: str | None = None
-    state_class: SensorStateClass | None = None
 
 
 async def async_setup_entry(
@@ -36,57 +36,63 @@ async def async_setup_entry(
     entities: list[SensorEntity] = []
 
     for raw_id in sorted((state.get("acs") or {}), key=lambda item: int(item)):
-        entities.append(OpenAirTouchAcSensor(coordinator, int(raw_id), SensorDescription("error_code", "Error Code", lambda status: status.get("error_code"))))
+        entities.append(OpenAirTouchAcSensor(
+            coordinator,
+            int(raw_id),
+            OpenAirTouchSensorDescription(
+                key="error_code",
+                name="Error Code",
+                value_fn=lambda status: status.get("error_code"),
+            ),
+        ))
 
     groups = state.get("active_groups") or state.get("groups") or {}
     for raw_id in sorted(groups, key=lambda item: int(item)):
         group_id = int(raw_id)
-        entities.append(OpenAirTouchZoneSensor(coordinator, group_id, SensorDescription(
-            "temperature",
-            "Temperature",
-            lambda status: status.get("temperature"),
-            SensorDeviceClass.TEMPERATURE,
-            UnitOfTemperature.CELSIUS,
-            SensorStateClass.MEASUREMENT,
+        entities.append(OpenAirTouchZoneSensor(coordinator, group_id, OpenAirTouchSensorDescription(
+            key="temperature",
+            name="Temperature",
+            value_fn=lambda status: status.get("temperature"),
+            device_class=SensorDeviceClass.TEMPERATURE,
+            native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+            state_class=SensorStateClass.MEASUREMENT,
         )))
-        entities.append(OpenAirTouchZoneSensor(coordinator, group_id, SensorDescription(
-            "percentage",
-            "Damper",
-            lambda status: status.get("percentage"),
-            None,
-            PERCENTAGE,
-            SensorStateClass.MEASUREMENT,
+        entities.append(OpenAirTouchZoneSensor(coordinator, group_id, OpenAirTouchSensorDescription(
+            key="percentage",
+            name="Damper",
+            value_fn=lambda status: status.get("percentage"),
+            native_unit_of_measurement=PERCENTAGE,
+            state_class=SensorStateClass.MEASUREMENT,
         )))
 
     for row in state.get("sensor_view") or []:
         if not isinstance(row, dict) or "id" not in row:
             continue
         sensor_id = str(row["id"])
-        entities.append(OpenAirTouchSensorViewSensor(coordinator, sensor_id, SensorDescription(
-            "temperature",
-            "Temperature",
-            lambda sensor_row: sensor_row.get("temperature"),
-            SensorDeviceClass.TEMPERATURE,
-            UnitOfTemperature.CELSIUS,
-            SensorStateClass.MEASUREMENT,
+        entities.append(OpenAirTouchSensorViewSensor(coordinator, sensor_id, OpenAirTouchSensorDescription(
+            key="temperature",
+            name="Temperature",
+            value_fn=lambda sensor_row: sensor_row.get("temperature"),
+            device_class=SensorDeviceClass.TEMPERATURE,
+            native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+            state_class=SensorStateClass.MEASUREMENT,
         )))
         if row.get("battery") is not None:
-            entities.append(OpenAirTouchSensorViewSensor(coordinator, sensor_id, SensorDescription(
-                "battery",
-                "Battery",
-                lambda sensor_row: sensor_row.get("battery"),
-                SensorDeviceClass.BATTERY,
-                PERCENTAGE,
-                SensorStateClass.MEASUREMENT,
+            entities.append(OpenAirTouchSensorViewSensor(coordinator, sensor_id, OpenAirTouchSensorDescription(
+                key="battery",
+                name="Battery",
+                value_fn=lambda sensor_row: sensor_row.get("battery"),
+                device_class=SensorDeviceClass.BATTERY,
+                native_unit_of_measurement=PERCENTAGE,
+                state_class=SensorStateClass.MEASUREMENT,
             )))
         if row.get("signal") is not None:
-            entities.append(OpenAirTouchSensorViewSensor(coordinator, sensor_id, SensorDescription(
-                "signal",
-                "Signal",
-                lambda sensor_row: sensor_row.get("signal"),
-                None,
-                PERCENTAGE,
-                SensorStateClass.MEASUREMENT,
+            entities.append(OpenAirTouchSensorViewSensor(coordinator, sensor_id, OpenAirTouchSensorDescription(
+                key="signal",
+                name="Signal",
+                value_fn=lambda sensor_row: sensor_row.get("signal"),
+                native_unit_of_measurement=PERCENTAGE,
+                state_class=SensorStateClass.MEASUREMENT,
             )))
 
     async_add_entities(entities)
@@ -95,7 +101,7 @@ async def async_setup_entry(
 class OpenAirTouchAcSensor(OpenAirTouchEntity, SensorEntity):
     """Sensor for an AC record."""
 
-    def __init__(self, coordinator: OpenAirTouchCoordinator, ac_id: int, description: SensorDescription) -> None:
+    def __init__(self, coordinator: OpenAirTouchCoordinator, ac_id: int, description: OpenAirTouchSensorDescription) -> None:
         super().__init__(coordinator, f"ac_{ac_id + 1}_{description.key}")
         self.ac_id = ac_id
         self.entity_description = description
@@ -125,7 +131,7 @@ class OpenAirTouchAcSensor(OpenAirTouchEntity, SensorEntity):
 class OpenAirTouchZoneSensor(OpenAirTouchEntity, SensorEntity):
     """Sensor for a zone record."""
 
-    def __init__(self, coordinator: OpenAirTouchCoordinator, group_id: int, description: SensorDescription) -> None:
+    def __init__(self, coordinator: OpenAirTouchCoordinator, group_id: int, description: OpenAirTouchSensorDescription) -> None:
         super().__init__(coordinator, f"zone_{group_id + 1}_{description.key}")
         self.group_id = group_id
         self.entity_description = description
@@ -144,7 +150,7 @@ class OpenAirTouchZoneSensor(OpenAirTouchEntity, SensorEntity):
 class OpenAirTouchSensorViewSensor(OpenAirTouchEntity, SensorEntity):
     """Sensor for an RF, touchpad, or supply-air sensor view row."""
 
-    def __init__(self, coordinator: OpenAirTouchCoordinator, sensor_id: str, description: SensorDescription) -> None:
+    def __init__(self, coordinator: OpenAirTouchCoordinator, sensor_id: str, description: OpenAirTouchSensorDescription) -> None:
         super().__init__(coordinator, f"sensor_{_safe_id(sensor_id)}_{description.key}")
         self.sensor_id = sensor_id
         self.entity_description = description
