@@ -49,14 +49,6 @@ async def async_setup_entry(
 
     for group_id in real_zone_ids(state):
         entities.append(OpenAirTouchZoneSensor(coordinator, group_id, OpenAirTouchSensorDescription(
-            key="temperature",
-            name="Temperature",
-            value_fn=lambda status: status.get("temperature"),
-            device_class=SensorDeviceClass.TEMPERATURE,
-            native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-            state_class=SensorStateClass.MEASUREMENT,
-        )))
-        entities.append(OpenAirTouchZoneSensor(coordinator, group_id, OpenAirTouchSensorDescription(
             key="percentage",
             name="Damper",
             value_fn=lambda status: status.get("percentage"),
@@ -231,6 +223,8 @@ class OpenAirTouchSensorViewSensor(OpenAirTouchEntity, SensorEntity):
         row = self._row or {}
         if row.get("kind") == "supply_air":
             return f"Supply Air {self.entity_description.name}"
+        if row.get("kind") == "touchpad":
+            return f"{_display_name(row, self.sensor_id)} {self.entity_description.name}"
         return self.entity_description.name
 
     @property
@@ -242,6 +236,8 @@ class OpenAirTouchSensorViewSensor(OpenAirTouchEntity, SensorEntity):
                 record = indexed(self._airtouch_state.get("acs") or {}, ac_id) or {}
                 base = record.get("base") or {}
                 return ac_device_info(self.coordinator, ac_id, base.get("name"))
+        if row.get("kind") == "touchpad":
+            return super().device_info
         zone_id = zone_id_for_sensor_row(self._airtouch_state, row)
         if zone_id is not None:
             groups = self._airtouch_state.get("active_groups") or self._airtouch_state.get("groups") or {}
@@ -289,3 +285,8 @@ class OpenAirTouchSensorViewSensor(OpenAirTouchEntity, SensorEntity):
 
 def _safe_id(value: str) -> str:
     return "".join(char.lower() if char.isalnum() else "_" for char in value).strip("_") or "unknown"
+
+
+def _display_name(row: dict[str, Any], fallback: str) -> str:
+    value = str(row.get("name") or fallback).replace("_", " ").strip()
+    return " ".join(word.capitalize() for word in value.split()) or fallback

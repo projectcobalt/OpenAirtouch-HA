@@ -14,7 +14,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import OpenAirTouchApiError, OpenAirTouchClient
 from .const import CONF_URL, DEFAULT_URL, DOMAIN
-from .discovery import url_from_hassio_discovery
+from .discovery import normalise_url, url_from_hassio_discovery
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,7 +34,10 @@ class OpenAirTouchConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _async_create_entry_from_url(self, url: str):
         """Validate an OpenAirTouch URL and create a config entry."""
-        url = url.rstrip("/")
+        if self._async_current_entries():
+            return self.async_abort(reason="already_configured")
+
+        url = normalise_url(url)
         if not _is_valid_url(url):
             raise OpenAirTouchApiError("invalid URL")
         await _validate_url(self.hass, url)

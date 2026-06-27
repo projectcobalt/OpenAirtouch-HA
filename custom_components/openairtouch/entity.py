@@ -73,10 +73,14 @@ def sensor_device_info(
 ) -> DeviceInfo:
     """Return device info for an AirTouch RF sensor or touchpad."""
     sensor_kind = kind or "sensor"
-    label = name or f"{sensor_kind.replace('_', ' ').title()} {sensor_id}"
+    label = _title_case_name(name or f"{sensor_kind} {sensor_id}")
     return DeviceInfo(
         identifiers={(DOMAIN, f"{coordinator.instance_id}_{sensor_kind}_{sensor_id}")},
         manufacturer=MANUFACTURER,
-        model=f"OpenAirTouch {sensor_kind.replace('_', ' ').title()}",
+        model=f"OpenAirTouch {_title_case_name(sensor_kind)}",
         name=label,
     )
+
+
+def _title_case_name(value: str) -> str:
+    return " ".join(word.capitalize() for word in value.replace("_", " ").split())

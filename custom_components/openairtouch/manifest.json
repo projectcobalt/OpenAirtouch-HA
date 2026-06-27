@@ -2,11 +2,11 @@
   "domain": "openairtouch",
   "name": "OpenAirTouch",
   "after_dependencies": ["hassio", "http"],
-  "codeowners": [],
+  "codeowners": ["@projectcobalt"],
   "config_flow": true,
   "documentation": "https://github.com/projectcobalt/OpenAirtouch-HA",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/projectcobalt/OpenAirtouch-HA/issues",
   "requirements": [],
-  "version": "0.1.7"
+  "version": "0.1.8"
 }
