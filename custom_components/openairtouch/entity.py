@@ -62,3 +62,21 @@ def zone_device_info(
     if ac_id is not None:
         info["via_device"] = (DOMAIN, f"{coordinator.instance_id}_ac_{ac_id}")
     return info
+
+
+def sensor_device_info(
+    coordinator: OpenAirTouchCoordinator,
+    sensor_id: str,
+    *,
+    kind: str | None = None,
+    name: str | None = None,
+) -> DeviceInfo:
+    """Return device info for an AirTouch RF sensor or touchpad."""
+    sensor_kind = kind or "sensor"
+    label = name or f"{sensor_kind.replace('_', ' ').title()} {sensor_id}"
+    return DeviceInfo(
+        identifiers={(DOMAIN, f"{coordinator.instance_id}_{sensor_kind}_{sensor_id}")},
+        manufacturer=MANUFACTURER,
+        model=f"OpenAirTouch {sensor_kind.replace('_', ' ').title()}",
+        name=label,
+    )

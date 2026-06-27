@@ -18,8 +18,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .coordinator import OpenAirTouchCoordinator, indexed
-from .entity import OpenAirTouchEntity, ac_device_info, zone_device_info
-from .state import ac_id_for_group, group_records, real_ac_ids, real_zone_ids, spill_group_ids
+from .entity import OpenAirTouchEntity, ac_device_info, sensor_device_info, zone_device_info
+from .state import ac_id_for_group, group_records, real_ac_ids, real_zone_ids, spill_group_ids, zone_id_for_sensor_row
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -72,6 +72,8 @@ async def async_setup_entry(
     for row in state.get("sensor_view") or []:
         if not isinstance(row, dict) or "id" not in row:
             continue
+        if row.get("kind") == "supply_air" and row.get("ac") not in real_ac_ids(state):
+            continue
         sensor_id = str(row["id"])
         entities.append(OpenAirTouchSensorViewSensor(coordinator, sensor_id, OpenAirTouchSensorDescription(
             key="temperature",
@@ -109,7 +111,7 @@ class OpenAirTouchAcSensor(OpenAirTouchEntity, SensorEntity):
         super().__init__(coordinator, f"ac_{ac_id + 1}_{description.key}")
         self.ac_id = ac_id
         self.entity_description = description
-        self._attr_name = f"AC {ac_id + 1} {description.name}"
+        self._attr_name = description.name
         self._attr_device_class = description.device_class
         self._attr_native_unit_of_measurement = description.native_unit_of_measurement
         self._attr_state_class = description.state_class
@@ -145,7 +147,7 @@ class OpenAirTouchZoneSensor(OpenAirTouchEntity, SensorEntity):
         super().__init__(coordinator, f"zone_{group_id + 1}_{description.key}")
         self.group_id = group_id
         self.entity_description = description
-        self._attr_name = f"Zone {group_id + 1} {description.name}"
+        self._attr_name = description.name
         self._attr_device_class = description.device_class
         self._attr_native_unit_of_measurement = description.native_unit_of_measurement
         self._attr_state_class = description.state_class
@@ -179,13 +181,11 @@ class OpenAirTouchSpillDamperSensor(OpenAirTouchEntity, SensorEntity):
         super().__init__(coordinator, f"ac_{ac_id + 1}_spill_zone_{group_id + 1}_damper")
         self.group_id = group_id
         self.ac_id = ac_id
-        self._attr_name = f"AC {ac_id + 1} Spill Damper"
+        self._attr_name = "Spill Damper"
 
     @property
     def name(self) -> str:
-        record = self._record
-        label = record.get("name") if record else None
-        return f"{label or 'Spill'} Damper"
+        return "Spill Damper"
 
     @property
     def native_value(self) -> Any:
@@ -228,9 +228,36 @@ class OpenAirTouchSensorViewSensor(OpenAirTouchEntity, SensorEntity):
 
     @property
     def name(self) -> str:
-        row = self._row
-        label = row.get("name") if row else None
-        return f"{label or f'Sensor {self.sensor_id}'} {self.entity_description.name}"
+        row = self._row or {}
+        if row.get("kind") == "supply_air":
+            return f"Supply Air {self.entity_description.name}"
+        return self.entity_description.name
+
+    @property
+    def device_info(self):
+        row = self._row or {}
+        if row.get("kind") == "supply_air":
+            ac_id = row.get("ac")
+            if isinstance(ac_id, int):
+                record = indexed(self._airtouch_state.get("acs") or {}, ac_id) or {}
+                base = record.get("base") or {}
+                return ac_device_info(self.coordinator, ac_id, base.get("name"))
+        zone_id = zone_id_for_sensor_row(self._airtouch_state, row)
+        if zone_id is not None:
+            groups = self._airtouch_state.get("active_groups") or self._airtouch_state.get("groups") or {}
+            record = indexed(groups, zone_id) or {}
+            return zone_device_info(
+                self.coordinator,
+                zone_id,
+                ac_id=ac_id_for_group(self._airtouch_state, zone_id),
+                name=record.get("name") or f"Zone {zone_id + 1}",
+            )
+        return sensor_device_info(
+            self.coordinator,
+            self.sensor_id,
+            kind=row.get("kind"),
+            name=row.get("name"),
+        )
 
     @property
     def native_value(self) -> Any:

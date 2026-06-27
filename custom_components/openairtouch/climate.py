@@ -69,20 +69,19 @@ class OpenAirTouchAcClimate(OpenAirTouchEntity, ClimateEntity):
     def __init__(self, coordinator: OpenAirTouchCoordinator, ac_id: int) -> None:
         super().__init__(coordinator, f"ac_{ac_id + 1}_climate")
         self.ac_id = ac_id
-        self._attr_name = f"AC {ac_id + 1}"
 
     @property
     def _record(self) -> dict[str, Any]:
         return indexed(self._airtouch_state.get("acs") or {}, self.ac_id) or {}
 
     @property
-    def name(self) -> str:
-        base = self._record.get("base") or {}
-        return base.get("name") or self._attr_name
+    def name(self) -> None:
+        return None
 
     @property
     def device_info(self):
-        return ac_device_info(self.coordinator, self.ac_id, self.name)
+        base = self._record.get("base") or {}
+        return ac_device_info(self.coordinator, self.ac_id, base.get("name"))
 
     @property
     def min_temp(self) -> float:
@@ -151,7 +150,6 @@ class OpenAirTouchZoneClimate(OpenAirTouchEntity, ClimateEntity):
     def __init__(self, coordinator: OpenAirTouchCoordinator, group_id: int) -> None:
         super().__init__(coordinator, f"zone_{group_id + 1}_climate")
         self.group_id = group_id
-        self._attr_name = f"Zone {group_id + 1}"
 
     @property
     def _record(self) -> dict[str, Any]:
@@ -159,8 +157,8 @@ class OpenAirTouchZoneClimate(OpenAirTouchEntity, ClimateEntity):
         return indexed(groups, self.group_id) or {}
 
     @property
-    def name(self) -> str:
-        return self._record.get("name") or self._attr_name
+    def name(self) -> None:
+        return None
 
     @property
     def device_info(self):
@@ -168,7 +166,7 @@ class OpenAirTouchZoneClimate(OpenAirTouchEntity, ClimateEntity):
             self.coordinator,
             self.group_id,
             ac_id=ac_id_for_group(self._airtouch_state, self.group_id),
-            name=self.name,
+            name=self._record.get("name") or f"Zone {self.group_id + 1}",
         )
 
     @property

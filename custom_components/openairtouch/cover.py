@@ -34,7 +34,7 @@ class OpenAirTouchZoneDamper(OpenAirTouchEntity, CoverEntity):
     def __init__(self, coordinator: OpenAirTouchCoordinator, group_id: int) -> None:
         super().__init__(coordinator, f"zone_{group_id + 1}_damper")
         self.group_id = group_id
-        self._attr_name = f"Zone {group_id + 1} Damper"
+        self._attr_name = "Damper"
 
     @property
     def _record(self) -> dict[str, Any]:
@@ -43,7 +43,7 @@ class OpenAirTouchZoneDamper(OpenAirTouchEntity, CoverEntity):
 
     @property
     def name(self) -> str:
-        return f"{self._record.get('name') or f'Zone {self.group_id + 1}'} Damper"
+        return "Damper"
 
     @property
     def device_info(self):

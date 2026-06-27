@@ -83,3 +83,21 @@ def ac_id_for_group(state: dict[str, Any], group_id: int) -> int | None:
             return ac_id
     ids = real_ac_ids(state)
     return ids[0] if len(ids) == 1 else None
+
+
+def zone_id_for_sensor_row(state: dict[str, Any], row: dict[str, Any]) -> int | None:
+    """Return the owning zone ID for an RF sensor row when it maps cleanly."""
+    if row.get("kind") != "rf":
+        return None
+    try:
+        sensor_id = int(row.get("id"))
+    except (TypeError, ValueError):
+        return None
+    if sensor_id % 2:
+        return None
+
+    group_id = sensor_id // 2
+    if group_id not in real_zone_ids(state):
+        return None
+    status = (group_records(state).get(group_id) or {}).get("status") or {}
+    return group_id if status.get("has_sensor") is True else None

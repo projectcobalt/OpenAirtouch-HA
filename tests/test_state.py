@@ -103,6 +103,31 @@ class OpenAirTouchStateTests(unittest.TestCase):
 
         self.assertEqual(ac_id, 1)
 
+    def test_zone_id_for_sensor_row_maps_rf_sensor_address_to_zone(self) -> None:
+        state = load_state_module()
+
+        zone_id = state.zone_id_for_sensor_row({
+            "active_groups": {
+                "0": {"status": {"has_sensor": True}},
+                "1": {"status": {"has_sensor": True}},
+            },
+        }, {"id": 2, "kind": "rf"})
+
+        self.assertEqual(zone_id, 1)
+
+    def test_zone_id_for_sensor_row_ignores_touchpads_and_unsensed_zones(self) -> None:
+        state = load_state_module()
+
+        base_state = {
+            "active_groups": {
+                "0": {"status": {"has_sensor": False}},
+                "1": {"status": {"has_sensor": True}},
+            },
+        }
+
+        self.assertIsNone(state.zone_id_for_sensor_row(base_state, {"id": 0, "kind": "rf"}))
+        self.assertIsNone(state.zone_id_for_sensor_row(base_state, {"id": 144, "kind": "touchpad"}))
+
 
 if __name__ == "__main__":
     unittest.main()
