@@ -75,6 +75,33 @@ class OpenAirTouchDiscoveryTests(unittest.TestCase):
 
         self.assertEqual(url, "http://d6642813-openairtouch:8099")
 
+    def test_hassio_service_info_uses_slug_as_container_hostname(self) -> None:
+        discovery = load_discovery_module()
+        discovery_info = types.SimpleNamespace(
+            config={},
+            name="OpenAirTouch",
+            slug="d6642813_openairtouch",
+            uuid="0123456789abcdef",
+        )
+
+        url = discovery.url_from_hassio_discovery(discovery_info)
+        unique_id = discovery.hassio_discovery_unique_id(discovery_info, url)
+
+        self.assertEqual(url, "http://d6642813-openairtouch:8099")
+        self.assertEqual(unique_id, "0123456789abcdef")
+        self.assertTrue(discovery.is_openairtouch_hassio_discovery(discovery_info))
+
+    def test_hassio_service_info_rejects_other_addon_slugs(self) -> None:
+        discovery = load_discovery_module()
+        discovery_info = types.SimpleNamespace(
+            config={},
+            name="Matter Server",
+            slug="core_matter_server",
+            uuid="0123456789abcdef",
+        )
+
+        self.assertFalse(discovery.is_openairtouch_hassio_discovery(discovery_info))
+
     def test_no_url_is_used_without_discovery_data(self) -> None:
         discovery = load_discovery_module()
 

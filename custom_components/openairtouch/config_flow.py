@@ -14,7 +14,12 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import OpenAirTouchApiError, OpenAirTouchClient
 from .const import CONF_URL, DEFAULT_URL, DOMAIN
-from .discovery import normalise_url, url_from_hassio_discovery
+from .discovery import (
+    hassio_discovery_unique_id,
+    is_openairtouch_hassio_discovery,
+    normalise_url,
+    url_from_hassio_discovery,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,7 +37,7 @@ class OpenAirTouchConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
-    async def _async_create_entry_from_url(self, url: str):
+    async def _async_create_entry_from_url(self, url: str, *, unique_id: str | None = None):
         """Validate an OpenAirTouch URL and create a config entry."""
         if self._async_current_entries():
             return self.async_abort(reason="already_configured")
@@ -41,18 +46,24 @@ class OpenAirTouchConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if not _is_valid_url(url):
             raise OpenAirTouchApiError("invalid URL")
         await _validate_url(self.hass, url)
-        await self.async_set_unique_id(url)
+        await self.async_set_unique_id(unique_id or url)
         self._abort_if_unique_id_configured()
         return self.async_create_entry(title="OpenAirTouch", data={CONF_URL: url})
 
     async def async_step_hassio(self, discovery_info: dict[str, Any]):
         """Handle discovery from the OpenAirTouch Home Assistant add-on."""
+        if not is_openairtouch_hassio_discovery(discovery_info):
+            return self.async_abort(reason="not_openairtouch_addon")
+
         url = url_from_hassio_discovery(discovery_info)
         if url is None:
             _LOGGER.warning("OpenAirTouch discovery did not include a routable add-on URL: %s", discovery_info)
             return self.async_abort(reason="missing_url")
         try:
-            return await self._async_create_entry_from_url(url)
+            return await self._async_create_entry_from_url(
+                url,
+                unique_id=hassio_discovery_unique_id(discovery_info, url),
+            )
         except OpenAirTouchApiError:
             _LOGGER.warning("Discovered OpenAirTouch add-on was not reachable")
             return self.async_abort(reason="cannot_connect")

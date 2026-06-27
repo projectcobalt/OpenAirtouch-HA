@@ -66,28 +66,31 @@ class FakeEntry:
 
 
 class OpenAirTouchRegistryTests(unittest.TestCase):
-    def test_instance_id_for_entry_uses_stored_value_or_entry_id(self) -> None:
+    def test_instance_id_for_entry_uses_configured_url_before_stored_value(self) -> None:
         registry = load_registry_module()
 
-        self.assertEqual(registry.instance_id_for_entry(FakeEntry({"instance_id": "stored"})), "stored")
-        self.assertEqual(registry.instance_id_for_entry(FakeEntry({"url": "http://addon:8099"})), "entry_abc123")
+        self.assertEqual(
+            registry.instance_id_for_entry(FakeEntry({"instance_id": "entry_abc123", "url": "http://addon:8099"})),
+            "http://addon:8099",
+        )
+        self.assertEqual(registry.instance_id_for_entry(FakeEntry({})), "http://172.30.33.4:8099")
 
-    def test_migrate_unique_id_replaces_legacy_instance_prefix(self) -> None:
+    def test_migrate_unique_id_replaces_bad_entry_id_prefix(self) -> None:
         registry = load_registry_module()
 
         migrated = registry.migrate_unique_id(
-            "openairtouch_http://172.30.33.4:8099_zone_1_climate",
-            "entry_abc123",
-            ["http://172.30.33.4:8099"],
+            "openairtouch_entry_abc123_zone_1_climate",
+            "http://addon:8099",
+            ["entry_abc123"],
         )
 
-        self.assertEqual(migrated, "openairtouch_entry_abc123_zone_1_climate")
+        self.assertEqual(migrated, "openairtouch_http://addon:8099_zone_1_climate")
 
     def test_stale_unique_ids_include_removed_zone_temps_and_touchpad_battery(self) -> None:
         registry = load_registry_module()
 
         stale = registry.stale_unique_ids(
-            "entry_abc123",
+            "http://addon:8099",
             {
                 "system": {"ac_count": 1},
                 "active_groups": {
@@ -102,10 +105,10 @@ class OpenAirTouchRegistryTests(unittest.TestCase):
             },
         )
 
-        self.assertIn("openairtouch_entry_abc123_zone_1_temperature", stale)
-        self.assertIn("openairtouch_entry_abc123_sensor_144_low_battery", stale)
-        self.assertIn("openairtouch_entry_abc123_sensor_2_temperature", stale)
-        self.assertNotIn("openairtouch_entry_abc123_sensor_1_temperature", stale)
+        self.assertIn("openairtouch_http://addon:8099_zone_1_temperature", stale)
+        self.assertIn("openairtouch_http://addon:8099_sensor_144_low_battery", stale)
+        self.assertIn("openairtouch_http://addon:8099_sensor_2_temperature", stale)
+        self.assertNotIn("openairtouch_http://addon:8099_sensor_1_temperature", stale)
 
 
 if __name__ == "__main__":

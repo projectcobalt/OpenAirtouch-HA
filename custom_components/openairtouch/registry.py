@@ -14,13 +14,17 @@ from .state import group_records, real_ac_ids
 
 def instance_id_for_entry(entry: ConfigEntry) -> str:
     """Return a stable integration instance ID for entity/device identifiers."""
-    stored = entry.data.get(CONF_INSTANCE_ID)
-    return str(stored) if stored else f"entry_{entry.entry_id}"
+    configured_url = entry.data.get(CONF_URL)
+    if isinstance(configured_url, str) and configured_url:
+        return configured_url
+    if isinstance(entry.unique_id, str) and entry.unique_id:
+        return entry.unique_id
+    return f"entry_{entry.entry_id}"
 
 
 def legacy_instance_ids(entry: ConfigEntry, instance_id: str) -> list[str]:
     """Return older instance identifiers that may exist in the entity registry."""
-    values = [entry.unique_id, entry.data.get(CONF_URL)]
+    values = [entry.data.get(CONF_INSTANCE_ID), f"entry_{entry.entry_id}", entry.unique_id, entry.data.get(CONF_URL)]
     seen: set[str] = {instance_id}
     result: list[str] = []
     for value in values:

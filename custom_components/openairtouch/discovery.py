@@ -6,27 +6,67 @@ from typing import Any
 from urllib.parse import urlparse, urlunparse
 
 DEFAULT_ADDON_PORT = 8099
+ADDON_SLUG = "openairtouch"
 
 
-def url_from_hassio_discovery(discovery_info: dict[str, Any] | None) -> str | None:
+def url_from_hassio_discovery(discovery_info: Any) -> str | None:
     """Return an add-on API URL from Supervisor discovery data."""
-    if not isinstance(discovery_info, dict):
+    discovery_data = hassio_discovery_data(discovery_info)
+    if discovery_data is None:
         return None
 
-    url = discovery_info.get("url")
+    url = discovery_data.get("url")
     if isinstance(url, str) and url.strip():
         return normalise_url(url)
 
-    host = _first_string(discovery_info, ("ip_address", "host", "hostname"))
-    port = _first_int(discovery_info, ("port", "api_port", "http_port")) or DEFAULT_ADDON_PORT
+    host = _first_string(discovery_data, ("ip_address", "host", "hostname"))
+    port = _first_int(discovery_data, ("port", "api_port", "http_port")) or DEFAULT_ADDON_PORT
     if host:
         return normalise_url(f"http://{host}:{port}")
 
-    addon = _first_string(discovery_info, ("addon", "slug"))
+    addon = _first_string(discovery_data, ("slug", "addon"))
     if addon:
         return normalise_url(f"http://{_addon_hostname(addon)}:{port}")
 
     return None
+
+
+def hassio_discovery_data(discovery_info: Any) -> dict[str, Any] | None:
+    """Return normalized discovery data from HA's HassioServiceInfo or a dict."""
+    if isinstance(discovery_info, dict):
+        return discovery_info
+
+    config = getattr(discovery_info, "config", None)
+    data = dict(config) if isinstance(config, dict) else {}
+    for attr in ("slug", "name", "uuid"):
+        value = getattr(discovery_info, attr, None)
+        if value is not None:
+            data[attr] = value
+    return data or None
+
+
+def hassio_discovery_unique_id(discovery_info: Any, fallback_url: str) -> str:
+    """Return the config-entry unique ID for a hassio discovery payload."""
+    uuid = getattr(discovery_info, "uuid", None)
+    if isinstance(uuid, str) and uuid:
+        return uuid
+    if isinstance(discovery_info, dict):
+        uuid = discovery_info.get("uuid")
+        if isinstance(uuid, str) and uuid:
+            return uuid
+    return fallback_url
+
+
+def is_openairtouch_hassio_discovery(discovery_info: Any) -> bool:
+    """Return whether a hassio discovery payload belongs to OpenAirTouch."""
+    data = hassio_discovery_data(discovery_info)
+    if data is None:
+        return False
+    slug = data.get("slug")
+    if isinstance(slug, str) and (slug == ADDON_SLUG or slug.endswith(f"_{ADDON_SLUG}")):
+        return True
+    service = data.get("service")
+    return service == ADDON_SLUG
 
 
 def normalise_url(url: str) -> str:
